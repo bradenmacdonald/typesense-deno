@@ -1,6 +1,6 @@
-import ApiCall from './ApiCall'
-import Collections from './Collections'
-import { OverrideSchema } from './Override'
+import ApiCall from './ApiCall.ts'
+import Collections from './Collections.ts'
+import { OverrideSchema } from './Override.ts'
 
 const RESOURCEPATH = '/overrides'
 

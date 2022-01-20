@@ -1,8 +1,8 @@
-import RequestWithCache from './RequestWithCache'
-import ApiCall from './ApiCall'
-import Configuration from './Configuration'
-import Collections from './Collections'
-import type { SearchableDocuments, SearchOptions, SearchParams, SearchResponse } from './Documents'
+import RequestWithCache from './RequestWithCache.ts'
+import ApiCall from './ApiCall.ts'
+import Configuration from './Configuration.ts'
+import Collections from './Collections.ts'
+import type { SearchableDocuments, SearchOptions, SearchParams, SearchResponse } from './Documents.ts'
 
 const RESOURCEPATH = '/documents'
 
@@ -15,10 +15,10 @@ export class SearchOnlyDocuments<T> implements SearchableDocuments<T> {
     searchParameters: SearchParams<T>,
     {
       cacheSearchResultsForSeconds = this.configuration.cacheSearchResultsForSeconds,
-      abortSignal = null
+      abortSignal = undefined
     }: SearchOptions = {}
   ): Promise<SearchResponse<T>> {
-    let additionalQueryParams = {}
+    const additionalQueryParams: Record<string, string|boolean> = {}
     if (this.configuration.useServerSideSearchCache === true) {
       additionalQueryParams['usecache'] = true
     }

@@ -1,6 +1,6 @@
-import ApiCall from './ApiCall'
-import Collections from './Collections'
-import { SynonymSchema } from './Synonym'
+import ApiCall from './ApiCall.ts'
+import Collections from './Collections.ts'
+import { SynonymSchema } from './Synonym.ts'
 
 const RESOURCEPATH = '/synonyms'
 

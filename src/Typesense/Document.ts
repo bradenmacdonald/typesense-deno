@@ -1,6 +1,6 @@
-import ApiCall from './ApiCall'
-import Collections from './Collections'
-import Documents, { DocumentSchema, DocumentWriteParameters } from './Documents'
+import ApiCall from './ApiCall.ts'
+import Collections from './Collections.ts'
+import Documents, { DocumentSchema, DocumentWriteParameters } from './Documents.ts'
 
 export class Document<T extends DocumentSchema = {}> {
   constructor(private collectionName: string, private documentId: string, private apiCall: ApiCall) {}

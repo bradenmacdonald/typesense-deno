@@ -1,4 +1,3 @@
-import axios, { AxiosRequestConfig, AxiosResponse, Method } from 'axios'
 import {
   HTTPError,
   ObjectAlreadyExists,
@@ -7,9 +6,9 @@ import {
   RequestMalformed,
   RequestUnauthorized,
   ServerError
-} from './Errors'
-import TypesenseError from './Errors/TypesenseError'
-import Configuration, { NodeConfiguration } from './Configuration'
+} from './Errors/index.ts'
+import TypesenseError from './Errors/TypesenseError.ts'
+import Configuration, { NodeConfiguration } from './Configuration.ts'
 
 const APIKEYHEADERNAME = 'X-TYPESENSE-API-KEY'
 const HEALTHY = true
@@ -18,6 +17,7 @@ const UNHEALTHY = false
 interface Node extends NodeConfiguration {
   isHealthy: boolean
   index: string | number
+  lastAccessTimestamp: number
 }
 
 export default class ApiCall {
@@ -53,51 +53,43 @@ export default class ApiCall {
 
   get<T extends any>(
     endpoint: string,
-    queryParameters: any = {},
+    queryParameters: Record<string, string> = {},
     {
-      abortSignal = null,
-      responseType = null
-    }: { abortSignal?: any; responseType?: AxiosRequestConfig['responseType'] } = {}
+      abortSignal,
+    }: { abortSignal?: AbortSignal;  } = {}
   ): Promise<T> {
-    return this.performRequest<T>('get', endpoint, { queryParameters, abortSignal, responseType })
+    return this.performRequest<T>('GET', endpoint, { queryParameters, abortSignal })
   }
 
-  delete<T extends any>(endpoint: string, queryParameters: any = {}): Promise<T> {
-    return this.performRequest<T>('delete', endpoint, { queryParameters })
+  delete<T extends any>(endpoint: string, queryParameters: Record<string, string> = {}): Promise<T> {
+    return this.performRequest<T>('DELETE', endpoint, { queryParameters })
   }
 
   post<T extends any>(
     endpoint: string,
     bodyParameters: any = {},
-    queryParameters: any = {},
-    additionalHeaders: any = {}
+    queryParameters: Record<string, string> = {},
+    additionalHeaders?: Headers
   ): Promise<T> {
-    return this.performRequest<T>('post', endpoint, { queryParameters, bodyParameters, additionalHeaders })
+    return this.performRequest<T>('POST', endpoint, { queryParameters, bodyParameters, additionalHeaders })
   }
 
-  put<T extends any>(endpoint: string, bodyParameters: any = {}, queryParameters: any = {}): Promise<T> {
-    return this.performRequest<T>('put', endpoint, { queryParameters, bodyParameters })
+  put<T extends any>(endpoint: string, bodyParameters: any = {}, queryParameters: Record<string, string> = {}): Promise<T> {
+    return this.performRequest<T>('PUT', endpoint, { queryParameters, bodyParameters })
   }
 
-  patch<T extends any>(endpoint: string, bodyParameters: any = {}, queryParameters: any = {}): Promise<T> {
-    return this.performRequest<T>('patch', endpoint, { queryParameters, bodyParameters })
+  patch<T extends any>(endpoint: string, bodyParameters: any = {}, queryParameters: Record<string, string> = {}): Promise<T> {
+    return this.performRequest<T>('PATCH', endpoint, { queryParameters, bodyParameters })
   }
 
   async performRequest<T extends any>(
-    requestType: Method,
+    requestType: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE',
     endpoint: string,
-    {
-      queryParameters = null,
-      bodyParameters = null,
-      additionalHeaders = {},
-      abortSignal = null,
-      responseType = null
-    }: {
-      queryParameters?: any
-      bodyParameters?: any
-      additionalHeaders?: any
-      abortSignal?: any
-      responseType?: AxiosRequestConfig['responseType']
+    options: {
+      queryParameters?: Record<string, string>,
+      bodyParameters?: any,
+      additionalHeaders?: Headers,
+      abortSignal?: AbortSignal,
     }
   ): Promise<T> {
     this.configuration.validate()
@@ -113,71 +105,64 @@ export default class ApiCall {
         }`
       )
 
+      // Create an abort controller to timeout the request, if the user didn't provide their own:
+      let abortSignal = options.abortSignal;
       if (abortSignal && abortSignal.aborted) {
         return Promise.reject(new Error('Request aborted by caller.'))
       }
+      let defaultTimeoutTimer;
+      if (abortSignal === undefined) {
+        const controller = new AbortController();
+        abortSignal = controller.signal;
+        defaultTimeoutTimer = setTimeout(() => controller.abort(), this.connectionTimeoutSeconds * 1000);
+      }
 
-      let abortListener
+      // Build the request
+      const headers = this.defaultHeaders();
+      if (options.additionalHeaders) {
+        for (const [key, value] of options.additionalHeaders.entries()) {
+          headers.set(key, value);
+        }
+      }
+      for (const [key, value] of Object.entries(this.additionalUserHeaders)) {
+        headers.set(key, value);
+      }
+      let body: BodyInit|undefined;
+      if (typeof options.bodyParameters === 'string' && options.bodyParameters.length !== 0) {
+        body = options.bodyParameters;
+      } else if (typeof options.bodyParameters === 'object' && Object.keys(options.bodyParameters).length !== 0) {
+        body = JSON.stringify(options.bodyParameters);
+      }
+      const requestOptions: Parameters<typeof fetch>[1] = {
+        method: requestType,
+        headers,
+        body,
+        signal: abortSignal,
+      }
+
+      // Parameters and request data:
+      const queryParameters = new URLSearchParams(options.queryParameters);
+
+      if (this.sendApiKeyAsQueryParam) {
+        queryParameters.set('x-typesense-api-key', this.apiKey);
+      }
 
       try {
-        let requestOptions: AxiosRequestConfig = {
-          method: requestType,
-          url: this.uriFor(endpoint, node),
-          headers: Object.assign({}, this.defaultHeaders(), additionalHeaders, this.additionalUserHeaders),
-          timeout: this.connectionTimeoutSeconds * 1000,
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
-          responseType,
-          validateStatus: (status) => {
-            /* Override default validateStatus, which only considers 2xx a success.
-                In our case, if the server returns any HTTP code, we will handle it below.
-                We do this to be able to raise custom errors based on response code.
-             */
-            return status > 0
-          },
-          transformResponse: [
-            (data, headers) => {
-              let transformedData = data
-              if (
-                headers !== undefined &&
-                typeof data === 'string' &&
-                headers['content-type'] &&
-                headers['content-type'].startsWith('application/json')
-              ) {
-                transformedData = JSON.parse(data)
-              }
-              return transformedData
-            }
-          ]
+        let url = this.uriFor(endpoint, node);
+        const queryString = queryParameters.toString();
+        if (queryString) {
+          url += "?" + queryString;
         }
 
-        if (queryParameters && Object.keys(queryParameters).length !== 0) {
-          requestOptions.params = queryParameters
+        // Do the request:
+        const response: Response = await fetch(url, requestOptions);
+        if (defaultTimeoutTimer) {
+          clearTimeout(defaultTimeoutTimer);
         }
 
-        if (this.sendApiKeyAsQueryParam) {
-          requestOptions.params = requestOptions.params || {}
-          requestOptions.params['x-typesense-api-key'] = this.apiKey
-        }
+        // Process the response:
+        const responseJson = response.headers.get("Content-Type")?.startsWith("application/json") ? await response.json() : undefined;
 
-        if (
-          bodyParameters &&
-          ((typeof bodyParameters === 'string' && bodyParameters.length !== 0) ||
-            (typeof bodyParameters === 'object' && Object.keys(bodyParameters).length !== 0))
-        ) {
-          requestOptions.data = bodyParameters
-        }
-
-        // Translate from user-provided AbortController to the Axios request cancel mechanism.
-        if (abortSignal) {
-          const cancelToken = axios.CancelToken
-          const source = cancelToken.source()
-          abortListener = () => source.cancel()
-          abortSignal.addEventListener('abort', abortListener)
-          requestOptions.cancelToken = source.token
-        }
-
-        let response = await axios(requestOptions)
         if (response.status >= 1 && response.status <= 499) {
           // Treat any status code > 0 and < 500 to be an indication that node is healthy
           // We exclude 0 since some clients return 0 when request fails
@@ -189,14 +174,14 @@ export default class ApiCall {
 
         if (response.status >= 200 && response.status < 300) {
           // If response is 2xx return a resolved promise
-          return Promise.resolve(response.data)
+          return Promise.resolve(responseJson ?? await response.text());
         } else if (response.status < 500) {
           // Next, if response is anything but 5xx, don't retry, return a custom error
-          return Promise.reject(this.customErrorForResponse(response, response.data?.message))
+          return Promise.reject(this.customErrorForResponse(response, responseJson?.message))
         } else {
           // Retry all other HTTP errors (HTTPStatus > 500)
           // This will get caught by the catch block below
-          throw this.customErrorForResponse(response, response.data?.message)
+          throw this.customErrorForResponse(response, responseJson?.message)
         }
       } catch (error) {
         // This block handles retries for HTTPStatus > 500 and network layer issues like connection timeouts
@@ -212,10 +197,6 @@ export default class ApiCall {
           `Request #${requestNumber}: Sleeping for ${this.retryIntervalSeconds}s and then retrying request...`
         )
         await this.timer(this.retryIntervalSeconds)
-      } finally {
-        if (abortSignal && abortListener) {
-          abortSignal.removeEventListener('abort', abortListener)
-        }
       }
     }
     this.logger.debug(`Request #${requestNumber}: No retries left. Raising last error`)
@@ -246,7 +227,7 @@ export default class ApiCall {
         .map((node) => `Node ${node.index} is ${node.isHealthy === true ? 'Healthy' : 'Unhealthy'}`)
         .join(' || ')}`
     )
-    let candidateNode: Node
+    let candidateNode: Node|undefined
     for (let i = 0; i <= this.nodes.length; i++) {
       this.currentNodeIndex = (this.currentNodeIndex + 1) % this.nodes.length
       candidateNode = this.nodes[this.currentNodeIndex]
@@ -254,6 +235,9 @@ export default class ApiCall {
         this.logger.debug(`Request #${requestNumber}: Updated current node to Node ${candidateNode.index}`)
         return candidateNode
       }
+    }
+    if (candidateNode === undefined) {
+      throw new Error("Internal Error - candidateNode not set");  // This is only to satisfy TypeScript
     }
 
     // None of the nodes are marked healthy, but some of them could have become healthy since last health check.
@@ -264,7 +248,7 @@ export default class ApiCall {
     return candidateNode
   }
 
-  nodeDueForHealthcheck(node, requestNumber: number = 0): boolean {
+  nodeDueForHealthcheck(node: Node, requestNumber: number = 0): boolean {
     const isDueForHealthcheck = Date.now() - node.lastAccessTimestamp > this.healthcheckIntervalSeconds * 1000
     if (isDueForHealthcheck) {
       this.logger.debug(
@@ -286,32 +270,32 @@ export default class ApiCall {
     })
   }
 
-  setNodeHealthcheck(node, isHealthy): void {
+  setNodeHealthcheck(node: Node, isHealthy: boolean): void {
     node.isHealthy = isHealthy
     node.lastAccessTimestamp = Date.now()
   }
 
-  uriFor(endpoint: string, node): string {
+  uriFor(endpoint: string, node: Node): string {
     if (node.url != null) {
       return `${node.url}${endpoint}`
     }
     return `${node.protocol}://${node.host}:${node.port}${node.path}${endpoint}`
   }
 
-  defaultHeaders(): any {
-    let defaultHeaders = {}
+  defaultHeaders(): Headers {
+    const defaultHeaders = new Headers();
     if (!this.sendApiKeyAsQueryParam) {
-      defaultHeaders[APIKEYHEADERNAME] = this.apiKey
+      defaultHeaders.set(APIKEYHEADERNAME, this.apiKey);
     }
-    defaultHeaders['Content-Type'] = 'application/json'
-    return defaultHeaders
+    defaultHeaders.set('Content-Type', 'application/json');
+    return defaultHeaders;
   }
 
-  async timer(seconds): Promise<void> {
+  async timer(seconds: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, seconds * 1000))
   }
 
-  customErrorForResponse(response: AxiosResponse, messageFromServer: string): TypesenseError {
+  customErrorForResponse(response: Response, messageFromServer: string): TypesenseError {
     let errorMessage = `Request failed with HTTP code ${response.status}`
     if (typeof messageFromServer === 'string' && messageFromServer.trim() !== '') {
       errorMessage += ` | Server said: ${messageFromServer}`

@@ -15,7 +15,7 @@ export default class RequestWithCache {
     const isCacheDisabled = cacheResponseForSeconds <= 0 || maxSize <= 0
 
     if (isCacheDisabled) {
-      return requestFunction.call(requestContext, ...requestFunctionArguments)
+      return requestFunction.call(requestContext, ...requestFunctionArguments) as T
     }
 
     const requestFunctionArgumentsJSON = JSON.stringify(requestFunctionArguments)

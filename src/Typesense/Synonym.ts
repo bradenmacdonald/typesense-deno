@@ -1,6 +1,6 @@
-import ApiCall from './ApiCall'
-import Collections from './Collections'
-import Synonyms, { SynonymCreateSchema } from './Synonyms'
+import ApiCall from './ApiCall.ts'
+import Collections from './Collections.ts'
+import Synonyms, { SynonymCreateSchema } from './Synonyms.ts'
 
 export interface SynonymSchema extends SynonymCreateSchema {
   id: string

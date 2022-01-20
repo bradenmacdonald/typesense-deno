@@ -1,6 +1,6 @@
-import { DocumentSchema, SearchableDocuments } from './Documents'
-import ApiCall from './ApiCall'
-import { SearchOnlyDocuments } from './SearchOnlyDocuments'
+import { DocumentSchema, SearchableDocuments } from './Documents.ts'
+import ApiCall from './ApiCall.ts'
+import { SearchOnlyDocuments } from './SearchOnlyDocuments.ts'
 
 export class SearchOnlyCollection<T extends DocumentSchema = {}> {
   private readonly _documents: SearchableDocuments<T>

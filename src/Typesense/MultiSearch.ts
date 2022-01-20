@@ -1,7 +1,7 @@
-import ApiCall from './ApiCall'
-import Configuration from './Configuration'
-import RequestWithCache from './RequestWithCache'
-import { DocumentSchema, SearchParams, SearchResponse } from './Documents'
+import ApiCall from './ApiCall.ts'
+import Configuration from './Configuration.ts'
+import RequestWithCache from './RequestWithCache.ts'
+import { DocumentSchema, SearchParams, SearchResponse } from './Documents.ts'
 
 const RESOURCEPATH = '/multi_search'
 
@@ -35,12 +35,12 @@ export default class MultiSearch<T extends DocumentSchema = {}> {
       cacheSearchResultsForSeconds = this.configuration.cacheSearchResultsForSeconds
     }: { cacheSearchResultsForSeconds?: number } = {}
   ): Promise<MultiSearchResponse<T>> {
-    let additionalHeaders = {}
+    let additionalHeaders: Record<string, string> = {}
     if (this.useTextContentType) {
       additionalHeaders['content-type'] = 'text/plain'
     }
 
-    let additionalQueryParams = {}
+    let additionalQueryParams: Record<string, string|boolean> = {}
     if (this.configuration.useServerSideSearchCache === true) {
       additionalQueryParams['usecache'] = true
     }

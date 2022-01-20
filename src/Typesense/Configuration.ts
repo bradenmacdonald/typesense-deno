@@ -1,5 +1,15 @@
-import * as logger from 'loglevel'
-import { MissingConfigurationError } from './Errors'
+import { log } from "../deps.ts";
+import { MissingConfigurationError } from './Errors/index.ts'
+
+const defaultLogger = {
+	trace : (v: string) => console.trace(v),
+	debug : (v: string) => log.debug(v),
+	info : (v: string) => log.info(v),
+	warn : (v: string) => log.warning(v),
+	error : (v: string) => log.error(v),
+	log : (v: string) => log.info(v),
+	setLevel : () => {}
+};
 
 export interface NodeConfiguration {
   host: string
@@ -33,13 +43,13 @@ export interface ConfigurationOptions {
   cacheSearchResultsForSeconds?: number
   additionalHeaders?: Record<string, string>
 
-  logLevel?: logger.LogLevelDesc
+  logLevel?: string // todo
   logger?: any //todo
 }
 
 export default class Configuration {
   readonly nodes: NodeConfiguration[]
-  readonly nearestNode: NodeConfiguration
+  readonly nearestNode: NodeConfiguration|null
   readonly connectionTimeoutSeconds: number
   readonly healthcheckIntervalSeconds: number
   readonly numRetries: number
@@ -58,8 +68,10 @@ export default class Configuration {
       .map((node) => this.setDefaultPathInNode(node))
       .map((node) => this.setDefaultPortInNode(node))
     this.nearestNode = options.nearestNode || null
-    this.nearestNode = this.setDefaultPathInNode(this.nearestNode)
-    this.nearestNode = this.setDefaultPortInNode(this.nearestNode)
+    if (this.nearestNode != null) {
+      this.nearestNode = this.setDefaultPathInNode(this.nearestNode)
+      this.nearestNode = this.setDefaultPortInNode(this.nearestNode)
+    }
 
     this.connectionTimeoutSeconds = options.connectionTimeoutSeconds || options.timeoutSeconds || 10
     this.healthcheckIntervalSeconds = options.healthcheckIntervalSeconds || 15
@@ -72,11 +84,11 @@ export default class Configuration {
     this.cacheSearchResultsForSeconds = options.cacheSearchResultsForSeconds || 0 // Disable client-side cache by default
     this.useServerSideSearchCache = options.useServerSideSearchCache || false
 
-    this.logger = options.logger || logger
+    this.logger = options.logger || defaultLogger
     this.logLevel = options.logLevel || 'warn'
     this.logger.setLevel(this.logLevel)
 
-    this.additionalHeaders = options.additionalHeaders
+    this.additionalHeaders = options.additionalHeaders ?? {}
 
     this.showDeprecationWarnings(options)
     this.validate()

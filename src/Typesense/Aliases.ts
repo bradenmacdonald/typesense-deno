@@ -1,4 +1,4 @@
-import ApiCall from './ApiCall'
+import ApiCall from './ApiCall.ts'
 
 const RESOURCEPATH = '/aliases'
 
@@ -25,7 +25,7 @@ export default class Aliases {
     return await this.apiCall.get<CollectionAliasesResponseSchema>(RESOURCEPATH)
   }
 
-  private endpointPath(aliasName): string {
+  private endpointPath(aliasName: string): string {
     return `${Aliases.RESOURCEPATH}/${aliasName}`
   }
 

@@ -1,5 +1,5 @@
-import ApiCall from './ApiCall'
-import { CollectionFieldSchema, CollectionSchema } from './Collection'
+import ApiCall from './ApiCall.ts'
+import { CollectionFieldSchema, CollectionSchema } from './Collection.ts'
 
 export interface CollectionCreateSchema {
   name: string

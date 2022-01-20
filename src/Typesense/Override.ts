@@ -1,6 +1,6 @@
-import ApiCall from './ApiCall'
-import Collections from './Collections'
-import Overrides, { OverrideCreateSchema } from './Overrides'
+import ApiCall from './ApiCall.ts'
+import Collections from './Collections.ts'
+import Overrides, { OverrideCreateSchema } from './Overrides.ts'
 
 export interface OverrideSchema extends OverrideCreateSchema {
   id: string

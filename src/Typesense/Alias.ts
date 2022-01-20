@@ -1,5 +1,5 @@
-import Aliases, { CollectionAliasSchema } from './Aliases'
-import ApiCall from './ApiCall'
+import Aliases, { CollectionAliasSchema } from './Aliases.ts'
+import ApiCall from './ApiCall.ts'
 
 export default class Alias {
   constructor(private name: string, private apiCall: ApiCall) {}

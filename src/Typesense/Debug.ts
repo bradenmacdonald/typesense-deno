@@ -1,4 +1,4 @@
-import ApiCall from './ApiCall'
+import ApiCall from './ApiCall.ts'
 
 const RESOURCEPATH = '/debug'
 

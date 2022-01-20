@@ -1,8 +1,8 @@
-import Configuration, { ConfigurationOptions } from './Configuration'
-import ApiCall from './ApiCall'
-import MultiSearch from './MultiSearch'
-import { DocumentSchema } from './Documents'
-import { SearchOnlyCollection } from './SearchOnlyCollection'
+import Configuration, { ConfigurationOptions } from './Configuration.ts'
+import ApiCall from './ApiCall.ts'
+import MultiSearch from './MultiSearch.ts'
+import { DocumentSchema } from './Documents.ts'
+import { SearchOnlyCollection } from './SearchOnlyCollection.ts'
 
 export default class SearchClient {
   public readonly multiSearch: MultiSearch

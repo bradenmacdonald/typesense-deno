@@ -1,5 +1,5 @@
-import ApiCall from './ApiCall'
-import Keys from './Keys'
+import ApiCall from './ApiCall.ts'
+import Keys from './Keys.ts'
 
 export interface KeyCreateSchema {
   actions: string[]

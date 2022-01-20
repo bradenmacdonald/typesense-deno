@@ -1,8 +1,7 @@
-import type { ReadStream } from 'fs'
-import ApiCall from './ApiCall'
-import Configuration from './Configuration'
-import { ImportError } from './Errors'
-import { SearchOnlyDocuments } from './SearchOnlyDocuments'
+import ApiCall from './ApiCall.ts'
+import Configuration from './Configuration.ts'
+import { ImportError } from './Errors/index.ts'
+import { SearchOnlyDocuments } from './SearchOnlyDocuments.ts'
 
 // Todo: use generic to extract filter_by values
 export interface DeleteQuery {
@@ -115,12 +114,12 @@ export interface SearchResponse<T extends DocumentSchema> {
   }[]
 }
 
-export interface DocumentWriteParameters {
+export type DocumentWriteParameters = {
   dirty_values?: 'coerce_or_reject' | 'coerce_or_drop' | 'drop' | 'reject'
   action?: 'create' | 'update' | 'upsert'
 }
 
-export interface DocumentsExportParameters {
+export type DocumentsExportParameters = {
   filter_by?: string
   include_fields?: string
   exclude_fields?: string
@@ -167,14 +166,15 @@ export default class Documents<T extends DocumentSchema = {}>
     return this.apiCall.post<T>(this.endpointPath(), document, Object.assign({}, options, { action: 'update' }))
   }
 
-  delete(idOrQuery: DeleteQuery): Promise<DeleteResponse>
-  delete(idOrQuery: string): Promise<T>
-  delete(idOrQuery: string | DeleteQuery = {} as DeleteQuery): Promise<DeleteResponse> | Promise<T> {
-    if (typeof idOrQuery === 'string') {
-      return this.apiCall.delete<T>(this.endpointPath(idOrQuery), idOrQuery)
-    } else {
-      return this.apiCall.delete<DeleteResponse>(this.endpointPath(), idOrQuery)
+  // delete(idOrQuery: DeleteQuery): Promise<DeleteResponse>
+  // delete(idOrQuery: string): Promise<T>
+  // delete(idOrQuery: string | DeleteQuery = {} as DeleteQuery): Promise<DeleteResponse> | Promise<T> {
+  delete(query: DeleteQuery): Promise<DeleteResponse> {
+    const queryParams: Record<string, string> = {filter_by: query.filter_by};
+    if (query.batch_size) {
+      queryParams.batch_size = String(query.batch_size);
     }
+    return this.apiCall.delete<DeleteResponse>(this.endpointPath(), queryParams);
   }
 
   async createMany(documents: T[], options: DocumentWriteParameters = {}) {
@@ -214,10 +214,10 @@ export default class Documents<T extends DocumentSchema = {}>
       documentsInJSONLFormat = documents
     }
 
-    const resultsInJSONLFormat = await this.apiCall.performRequest<string>('post', this.endpointPath('import'), {
+    const resultsInJSONLFormat = await this.apiCall.performRequest<string>('POST', this.endpointPath('import'), {
       queryParameters: options,
       bodyParameters: documentsInJSONLFormat,
-      additionalHeaders: { 'Content-Type': 'text/plain' }
+      additionalHeaders: new Headers({ 'Content-Type': 'text/plain' }),
     })
 
     if (Array.isArray(documents)) {
@@ -245,10 +245,10 @@ export default class Documents<T extends DocumentSchema = {}>
     return this.apiCall.get<string>(this.endpointPath('export'), options)
   }
 
-  /**
-   * Returns a NodeJS readable stream of JSONL for all the documents in this collection.
-   */
-  async exportStream(options: DocumentsExportParameters = {}): Promise<ReadStream> {
-    return this.apiCall.get<ReadStream>(this.endpointPath('export'), options, { responseType: 'stream' })
-  }
+  // /**
+  //  * Returns a NodeJS readable stream of JSONL for all the documents in this collection.
+  //  */
+  // async exportStream(options: DocumentsExportParameters = {}): Promise<ReadStream> {
+  //   return this.apiCall.get<ReadStream>(this.endpointPath('export'), options, { responseType: 'stream' })
+  // }
 }
