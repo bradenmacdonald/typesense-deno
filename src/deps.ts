@@ -1,6 +1,6 @@
 // Keep it simple: don't use any dependencies outside of the Deno standard library
-export * as log from "https://deno.land/std@0.120.0/log/mod.ts";
-export { encode as base64Encode } from "https://deno.land/std@0.120.0/encoding/base64.ts";
+export * as log from "https://deno.land/std@0.170.0/log/mod.ts";
+export { encode as base64Encode } from "https://deno.land/std@0.170.0/encoding/base64.ts";
 
 export async function sha256hmac(
   secretKey: Uint8Array | string,
